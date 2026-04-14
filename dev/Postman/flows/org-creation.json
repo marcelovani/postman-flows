@@ -1,0 +1,10 @@
+{
+  "name": "Organisation creation",
+  "description": "Organisation admin logs in, creates an organisation, edits it, and views it to verify the changes persisted.",
+  "steps": [
+    "Organisation admin login",
+    "Create Organisation",
+    "Edit Organisation",
+    "View Organisation"
+  ]
+}
