@@ -49,8 +49,9 @@ Then we tried to run them in CI.
 
 ## The Limitation: Postman Flows Require Enterprise to Run from CLI
 
-Postman has a separate CLI tool (distinct from Newman) that includes a
-`postman flows run` command. We got excited. We [read the docs][flows-docs]. Then we hit this:
+Postman has a separate CLI tool (distinct from [Newman][newman], Postman's open-source
+collection runner) that includes a `postman flows run` command. We got excited. We
+[read the docs][flows-docs]. Then we hit this:
 
 > `postman flows run` requires a Postman Enterprise plan.
 
@@ -68,7 +69,7 @@ had been open since 2023 with no free solution. The [GitHub issue][gh-issue] req
 Newman support for Flows had plenty of 👍 reactions and no resolution.
 
 The fallback recommendation was the same everywhere: *convert your Flows to a Collection
-and use Newman*.
+and use [Newman][newman]*.
 
 Which brings us to the real problem.
 
@@ -76,9 +77,14 @@ Which brings us to the real problem.
 
 ## Why "Just Use a Folder" Doesn't Work
 
-Newman runs Postman Collections. You can organise requests into folders and run a
-specific folder with `--folder`. The obvious approach: create a folder per flow,
-put the requests in the right order, and run each folder. Sounds like the answer, right?
+For context: [Newman][newman] is Postman's open-source CLI runner. It takes a
+collection JSON file and an optional environment file, fires every request in sequence,
+and reports the results — pass/fail assertions, response times, the works. Free, no
+account required, and a standard part of any Postman-based CI setup.
+
+Newman can also organise requests into folders and run a specific folder with
+`--folder`. The obvious approach: create a folder per flow, put the requests in the
+right order, and run each folder. Sounds like the answer, right?
 
 There are two problems.
 
@@ -521,6 +527,7 @@ ENV=ci node dev/Postman/run-flow.js "Organisation creation"
 Set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `MEMBER_USERNAME`, and `MEMBER_PASSWORD` as
 environment variables (or GitHub Actions secrets) for the CI environment.
 
+[newman]: https://github.com/postmanlabs/newman
 [thread]: https://community.postman.com/t/use-postman-flows-in-ci-cd-github-actions/62677
 [gh-issue]: https://github.com/postmanlabs/postman-app-support/issues/11770
 [flows-docs]: https://learning.postman.com/docs/postman-flows/tutorials/video/create-first-flow
