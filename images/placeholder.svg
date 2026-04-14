@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450">
+  <rect width="800" height="450" fill="#f6f8fa" rx="6"/>
+  <rect x="2" y="2" width="796" height="446" fill="none" stroke="#d0d7de" stroke-width="2" rx="5" stroke-dasharray="10,5"/>
+  <text x="400" y="205" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#57606a">Screenshot coming soon</text>
+  <text x="400" y="245" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" fill="#8c959f">Replace with the actual screenshot</text>
+</svg>

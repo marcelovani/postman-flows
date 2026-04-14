@@ -34,11 +34,8 @@ saved requests onto a board, connect them with arrows, and define the sequence w
 writing any orchestration code. Each node represents a request from your collection;
 variables pipe automatically from one step to the next.
 
-<!-- SCREENSHOT 1: The Postman Flows canvas showing the "Organisation creation" flow.
-     Open Postman → FLOWS section in the left sidebar → click the Organisation creation flow.
-     The canvas should show the request nodes (Organisation admin login, Create Organisation,
-     Edit Organisation, View Organisation) connected by arrows, with the variable
-     bindings visible between steps. Capture the full canvas area. -->
+![Postman Flows canvas — Organisation creation flow](images/placeholder.svg)
+*The Postman Flows canvas showing the Organisation creation flow. Request nodes are connected by arrows; variable bindings are visible between steps.*
 
 We started building flows there. They were clear, they were maintainable, and they
 made it immediately obvious how the API was meant to be used. Life was good.
@@ -55,11 +52,8 @@ collection runner) that includes a `postman flows run` command. We got excited. 
 
 > `postman flows run` requires a Postman Enterprise plan.
 
-<!-- SCREENSHOT 2: The Postman documentation or pricing page showing that
-     "postman flows run" requires an Enterprise plan. Go to
-     https://learning.postman.com/docs/postman-cli/postman-cli-options/ or the
-     Postman pricing page and capture the section that mentions Enterprise as a
-     requirement for running Flows from the CLI. -->
+![Postman docs showing postman flows run requires Enterprise](images/placeholder.svg)
+*The Postman documentation showing that `postman flows run` requires an Enterprise plan.*
 
 
 We're a small team. Enterprise pricing for a test-runner felt like a lot.
@@ -100,10 +94,8 @@ the same request definition. Every time the endpoint changed, we'd have to updat
 multiple places. Scale that across login requests, setup steps, and teardown, and
 you have a maintenance nightmare.
 
-<!-- SCREENSHOT 3: The Postman collection sidebar showing the old folder structure
-     with duplicate requests. Expand the collection tree so both copies of "Invite User"
-     are visible side by side under different parent folders. This illustrates the
-     duplication problem directly. -->
+![Postman collection sidebar showing duplicate requests in different folders](images/placeholder.svg)
+*Both copies of "Invite User" visible side by side under different parent folders — the duplication problem in plain sight.*
 
 Postman Flows solve this elegantly on the canvas — you drag the same request block
 into multiple flows without duplicating anything. But in a Collection, there's no
@@ -166,10 +158,8 @@ Attempting to set next request to Organisation admin login
 
 And then Newman stopped. One request executed.
 
-<!-- SCREENSHOT 4: Terminal output showing Newman running with --folder and stopping
-     after the first request. The key thing to show is the "Attempting to set next
-     request to Organisation admin login" line followed by Newman exiting with a summary of
-     only 1 request executed (not the expected 4). Crop to show the relevant output. -->
+![Terminal output showing Newman stopping after one request with --folder](images/placeholder.svg)
+*"Attempting to set next request to Organisation admin login" — then Newman exits. Only 1 of the expected 4 requests executed.*
 
 
 The issue: when you pass `--folder "Organisation creation"` to Newman, it only *loads* the
@@ -207,9 +197,8 @@ My API
         └── Start: Member invitation
 ```
 
-<!-- SCREENSHOT 5: The Postman collection sidebar showing this structure —
-     the top-level "Requests/" folder expanded to show its sub-folders, and the
-     "Flows/" folder expanded to show the "Organisation creation" documentation entry. -->
+![Postman collection sidebar showing the Requests/ and Flows/ folder structure](images/placeholder.svg)
+*The collection sidebar: `Requests/` expanded to show sub-folders; `Flows/` expanded to show the documentation entry for Organisation creation.*
 
 The `Flows/` folder exists purely for discoverability in the Postman desktop app.
 Anyone opening the collection can see what flows exist and what steps they contain.
@@ -337,10 +326,8 @@ ENV=mock node dev/Postman/run-flow.js "Organisation creation"
 
 ### The output
 
-<!-- SCREENSHOT 6: Terminal output of a passing npm test run. Run
-     `npm test` locally and capture the full output — the mock server startup lines,
-     both flow runs with their request lines and green tick assertions, and the
-     final "Stopping mock server" line. -->
+![Terminal output of a passing npm test run](images/placeholder.svg)
+*`npm test` output: mock server starts, both flows run with all assertions passing, server shuts down cleanly.*
 
 ```
 [test] Starting mock server on port 3000...
@@ -412,11 +399,8 @@ Adding a new flow requires no changes to `run-flow.js` or the CI workflow. Drop 
 new `.json` file into `dev/Postman/flows/` and it's automatically picked up on the
 next run.
 
-<!-- SCREENSHOT 7: A passing GitHub Actions run showing the two Newman steps
-     ("Run Newman — all requests" and "Run Newman — all flows") both with green
-     ticks, and the "newman-results" artifact listed in the Summary tab.
-     Go to the Actions tab in your repo, open a successful run of the build-test
-     workflow, and capture the job step list and the artifacts section. -->
+![GitHub Actions run with Newman flow steps passing and artifact uploaded](images/placeholder.svg)
+*A passing GitHub Actions run: the Newman flow step shows green, and the `newman-results` artifact is listed in the Summary tab.*
 
 ---
 
