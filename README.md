@@ -382,37 +382,126 @@ ENV=mock node dev/Postman/run-flow.js "Organisation creation"
 
 ### The output
 
-<!-- SCREENSHOT 6: Terminal output of a passing flow run. Run
-     `make test-newman FLOW="Organisation creation"` locally and capture the full output —
-     the "▶ Running flow" header, each request with its HTTP method/status/timing,
-     the green tick assertions, and the final "✅ Flow passed" line. -->
+<!-- SCREENSHOT 6: Terminal output of a passing npm test run. Run
+     `npm test` locally and capture the full output — the mock server startup lines,
+     both flow runs with their request lines and green tick assertions, and the
+     final "Stopping mock server" line. -->
 
 ```
+[test] Starting mock server on port 3000...
+[mock] Server listening at http://localhost:3000
+[mock] Endpoints:
+[mock]   POST   /api/auth/login
+[mock]   POST   /api/organisations
+[mock]   PATCH  /api/organisations/:id
+[mock]   GET    /api/organisations/:id
+[mock]   POST   /api/organisations/:id/invitations
+[mock]   POST   /api/invitations/:id/accept
+[test] Server is ready.
+
+▶ Running flow: Member invitation
+  Steps: Organisation admin login → Create Organisation → Organisation member login → Invite member → Accept invitation
+
+newman
+
+My API — Flow: Member invitation
+
+→ Organisation admin login
+  POST http://localhost:3000/api/auth/login [200 OK, 366B, 23ms]
+  ✓  Status code is 200
+  ✓  Response has access_token
+
+→ Create Organisation
+  POST http://localhost:3000/api/organisations [201 Created, 368B, 3ms]
+  ✓  Status code is 201
+  ✓  Response has organisation id
+
+→ Organisation member login
+  POST http://localhost:3000/api/auth/login [200 OK, 368B, 1ms]
+  ✓  Status code is 200
+  ✓  Response has access_token
+
+→ Invite member
+  POST http://localhost:3000/api/organisations/org-8v7h0dxwmnyo0shv/invitations [201 Created, 349B, 2ms]
+  ✓  Status code is 201
+  ✓  Invitation created
+
+→ Accept invitation
+  POST http://localhost:3000/api/invitations/inv-i12wpdmtmnyo0sil/accept [200 OK, 294B, 3ms]
+  ✓  Status code is 200
+
+┌─────────────────────────┬─────────────────┬─────────────────┐
+│                         │        executed │          failed │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              iterations │               1 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│                requests │               5 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│            test-scripts │               5 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│      prerequest-scripts │               0 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              assertions │               9 │               0 │
+├─────────────────────────┴─────────────────┴─────────────────┤
+│ total run duration: 100ms                                   │
+├─────────────────────────────────────────────────────────────┤
+│ total data received: 556B (approx)                          │
+├─────────────────────────────────────────────────────────────┤
+│ average response time: 6ms [min: 1ms, max: 23ms, s.d.: 8ms] │
+└─────────────────────────────────────────────────────────────┘
+
+✅ Flow "Member invitation" passed.
+
 ▶ Running flow: Organisation creation
   Steps: Organisation admin login → Create Organisation → Edit Organisation → View Organisation
 
+newman
+
+My API — Flow: Organisation creation
+
 → Organisation admin login
-  POST /api/auth/login [200 OK, 370ms]
+  POST http://localhost:3000/api/auth/login [200 OK, 366B, 16ms]
   ✓  Status code is 200
   ✓  Response has access_token
-  ✓  User object has required fields
 
 → Create Organisation
-  POST /api/organisations [201 Created, 88ms]
+  POST http://localhost:3000/api/organisations [201 Created, 368B, 2ms]
   ✓  Status code is 201
-  ✓  Response has organisation data.id
+  ✓  Response has organisation id
 
 → Edit Organisation
-  PATCH /api/organisations/4be6... [200 OK, 65ms]
+  PATCH http://localhost:3000/api/organisations/org-02v22y3pmnyo0sx9 [200 OK, 373B, 2ms]
   ✓  Status code is 200
-  ✓  Check org name
+  ✓  Name was updated
 
 → View Organisation
-  GET /api/organisations/4be6... [200 OK, 36ms]
+  GET http://localhost:3000/api/organisations/org-02v22y3pmnyo0sx9 [200 OK, 373B, 1ms]
   ✓  Status code is 200
-  ✓  Creator user is a member of the organisation
+  ✓  Creator is a member
+
+┌─────────────────────────┬─────────────────┬─────────────────┐
+│                         │        executed │          failed │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              iterations │               1 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│                requests │               4 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│            test-scripts │               4 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│      prerequest-scripts │               0 │               0 │
+├─────────────────────────┼─────────────────┼─────────────────┤
+│              assertions │               8 │               0 │
+├─────────────────────────┴─────────────────┴─────────────────┤
+│ total run duration: 78ms                                    │
+├─────────────────────────────────────────────────────────────┤
+│ total data received: 531B (approx)                          │
+├─────────────────────────────────────────────────────────────┤
+│ average response time: 5ms [min: 1ms, max: 16ms, s.d.: 6ms] │
+└─────────────────────────────────────────────────────────────┘
 
 ✅ Flow "Organisation creation" passed.
+
+[test] Stopping mock server...
 ```
 
 ---
