@@ -4,6 +4,8 @@ NEWMAN_RESULTS    := tests/results/newman
 # Select environment file based on ENV variable (default: local)
 ifeq ($(ENV),ci)
   NEWMAN_ENV := dev/Postman/environment.ci.postman_environment.json
+else ifeq ($(ENV),mock)
+  NEWMAN_ENV := dev/Postman/environment.mock.postman_environment.json
 else
   NEWMAN_ENV := dev/Postman/environment.local.postman_environment.json
 endif
@@ -12,7 +14,7 @@ endif
 test-newman:
 	@mkdir -p $(NEWMAN_RESULTS)
 	@if [ -n "${FLOW}" ]; then \
-		node dev/Postman/run-flow.js "${FLOW}"; \
+		ENV=$(ENV) node dev/Postman/run-flow.js "${FLOW}"; \
 	else \
 		npx newman run $(NEWMAN_COLLECTION) \
 			--folder Requests \
@@ -29,5 +31,9 @@ test-newman-flows:
 		flow_name=$$(node -e "process.stdout.write(require('./'+'$$flow_file').name)"); \
 		echo ""; \
 		echo "▶ Flow: $$flow_name"; \
-		node dev/Postman/run-flow.js "$$flow_name" || exit 1; \
+		ENV=$(ENV) node dev/Postman/run-flow.js "$$flow_name" || exit 1; \
 	done
+
+# Start mock server and run all flows against it
+test-newman-mock:
+	@bash scripts/test-with-mock.sh

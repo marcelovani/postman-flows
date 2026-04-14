@@ -123,11 +123,12 @@ const tempCollection = {
     ...collection.info,
     name: `${collection.info.name} — Flow: ${flowDef.name}`,
   },
-  // Carry over collection-level variables and auth, but strip any flow-router
-  // test scripts that were part of the setNextRequest() approach.
-  variable: collection.variable || [],
-  auth:     collection.auth,
-  item:     flowItems,
+  // Do NOT carry over collection-level variables. If we include them (even with
+  // empty values), they shadow globals set by pm.globals.set() in test scripts,
+  // because collection scope has higher priority than global scope in Newman's
+  // variable resolution. Omitting them lets globals resolve correctly.
+  auth: collection.auth,
+  item: flowItems,
 };
 
 // ---------------------------------------------------------------------------

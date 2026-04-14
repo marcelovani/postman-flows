@@ -8,6 +8,60 @@ Here's how we got around it — without duplicating a single request.
 
 ---
 
+## Running the examples in this repo
+
+The collection ships with a local mock server so you can run every flow without
+a real API or a Postman account.
+
+**Prerequisites:** Node.js 18+
+
+```bash
+git clone https://github.com/marcelovani/postman-flows.git
+cd postman-flows
+npm install
+
+# Start the mock server and run all flows in one command
+npm run test:mock
+```
+
+That's it. You should see both flows pass:
+
+```
+✅ Flow "Member invitation" passed.
+✅ Flow "Organisation creation" passed.
+```
+
+### Running flows individually
+
+```bash
+# Terminal 1 — start the mock server
+npm run mock
+
+# Terminal 2 — run a specific flow
+ENV=mock make test-newman FLOW="Organisation creation"
+ENV=mock make test-newman FLOW="Member invitation"
+
+# Or run every flow at once
+ENV=mock make test-newman-flows
+```
+
+### Pointing at a real API
+
+Export your Postman collection and environment, drop them into `dev/Postman/`, and run:
+
+```bash
+# Local API
+make test-newman-flows
+
+# CI
+ENV=ci make test-newman-flows
+```
+
+Set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `MEMBER_USERNAME`, and `MEMBER_PASSWORD` as
+environment variables (or GitHub Actions secrets) for the CI environment.
+
+---
+
 ## The Problem: We Wanted Flows, Not Just Folders
 
 Our backend exposes a JSON REST API. We use Postman to document and test every endpoint.
