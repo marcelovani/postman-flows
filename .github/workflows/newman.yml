@@ -24,15 +24,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run Newman — all requests (smoke test)
-        run: npm run test:newman
-        continue-on-error: true
-        env:
-          ADMIN_USERNAME: ${{ secrets.ADMIN_USERNAME }}
-          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-          MEMBER_USERNAME: ${{ secrets.MEMBER_USERNAME }}
-          MEMBER_PASSWORD: ${{ secrets.MEMBER_PASSWORD }}
-
       - name: Run Newman — all flows
         run: npm test
         continue-on-error: false
