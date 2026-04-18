@@ -154,12 +154,7 @@ Each entry in `Flows/` is a Postman request with:
 ```javascript
 // Org admin logs in, creates an organisation, edits it, and views it.
 // Run: newman-flows run "Org admin creates org"
-steps([
-  "Org admin login",
-  "Create Organization",
-  "Edit Organization",
-  "View Organization",
-]);
+steps(['Org admin login', 'Create Organization', 'Edit Organization', 'View Organization']);
 ```
 
 Step names must **exactly match** request names in `Requests/`.
@@ -213,24 +208,18 @@ npx newman-flows run --all --collection ./path/to/my.postman_collection.json
 Resolution order:
 
 1. `--env <path>` flag (absolute or relative to cwd)
-2. `DEV_TOOL` env var selects which file to prefer:
-   - Any value containing `docker` (e.g. `docker`, `docker-compose`) → first file whose name contains `docker` (case-insensitive)
-   - Anything else (or unset) → first file whose name contains `ddev` (case-insensitive)
-3. First `*.postman_environment.json` in `<cwd>/dev/Postman/` (alphabetical fallback)
-4. No environment file — Newman runs without one
+2. First `*.postman_environment.json` in `<cwd>/dev/Postman/` (alphabetical)
+3. No environment file — Newman runs without one
 
 ```bash
-# Default: picks a file containing "ddev" in its name
+# Auto-discovered (alphabetically first env file in dev/Postman/)
 npx newman-flows run --all
 
-# Docker / docker-compose environment
-DEV_TOOL=docker-compose npx newman-flows run --all
-
-# Explicit path — bypasses all auto-discovery
+# Explicit path — use this when you have multiple env files
 npx newman-flows run --all --env ./dev/Postman/staging.postman_environment.json
 ```
 
-The keyword matching is intentionally loose so names like `"Drupal Ddev …"` and `"Drupal Docker …"` are found without needing an exact prefix.
+When your project has multiple environment files (local, staging, CI, etc.), pass `--env` explicitly rather than relying on auto-discovery.
 
 ---
 
