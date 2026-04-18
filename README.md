@@ -1,8 +1,14 @@
 # newman-flows
 
+[![npm version](https://img.shields.io/npm/v/newman-flows)](https://www.npmjs.com/package/newman-flows)
+[![npm downloads](https://img.shields.io/npm/dm/newman-flows)](https://www.npmjs.com/package/newman-flows)
+[![license](https://img.shields.io/npm/l/newman-flows)](LICENSE)
+
 > Multi-step Postman flow runner for the free plan — no Enterprise required.
 
 `newman-flows` sits on top of [Newman](https://github.com/postmanlabs/newman) and adds the one thing Newman doesn't have: **flows**. A flow is an ordered sequence of named requests drawn from your Postman collection. Each request is defined exactly once; a flow just lists the steps to run and in what order.
+
+Newman is a runtime dependency — it updates independently, and `newman-flows` benefits from every Newman bug fix automatically.
 
 ```bash
 npx newman-flows list
@@ -267,7 +273,7 @@ await runAllFlows({
   collection: './dev/Postman/my-api.postman_collection.json',
   reporters: ['cli', 'junit', 'htmlextra'],
   reporter: {
-    junit:     { export: './test/results/newman/results.xml' },
+    junit: { export: './test/results/newman/results.xml' },
     htmlextra: { export: './test/results/newman/report.html' },
   },
 });
