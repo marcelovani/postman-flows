@@ -247,4 +247,33 @@ describe('resolveEnvironmentPath', () => {
     expect(resolveEnvironmentPath()).toContain('Docker');
     delete process.env['DEV_TOOL'];
   });
+
+  it('prefers the Docker env when DEV_TOOL=docker-compose (substring match)', () => {
+    const dir = path.join(tmpDir, 'dev', 'Postman');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'Docker.postman_environment.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'Ddev.postman_environment.json'), '{}');
+    process.env['DEV_TOOL'] = 'docker-compose';
+    expect(resolveEnvironmentPath()).toContain('Docker');
+    delete process.env['DEV_TOOL'];
+  });
+
+  it('matches "Drupal Ddev" env filename (real-world prefix naming)', () => {
+    const dir = path.join(tmpDir, 'dev', 'Postman');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'Drupal Docker.postman_environment.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'Drupal Ddev.postman_environment.json'), '{}');
+    delete process.env['DEV_TOOL'];
+    expect(resolveEnvironmentPath()).toContain('Drupal Ddev');
+  });
+
+  it('matches "Drupal Docker" env filename when DEV_TOOL=docker-compose', () => {
+    const dir = path.join(tmpDir, 'dev', 'Postman');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'Drupal Docker.postman_environment.json'), '{}');
+    fs.writeFileSync(path.join(dir, 'Drupal Ddev.postman_environment.json'), '{}');
+    process.env['DEV_TOOL'] = 'docker-compose';
+    expect(resolveEnvironmentPath()).toContain('Drupal Docker');
+    delete process.env['DEV_TOOL'];
+  });
 });

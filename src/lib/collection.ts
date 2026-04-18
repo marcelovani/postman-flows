@@ -95,9 +95,12 @@ export function resolveCollectionPath(override?: string): string {
  *
  * Resolution order:
  *   1. Explicit override (--env flag or programmatic option)
- *   2. DEV_TOOL env var: "docker" → first "Docker *.postman_environment.json",
- *      otherwise first "Ddev *.postman_environment.json" in <cwd>/dev/Postman/
- *   3. First *.postman_environment.json in <cwd>/dev/Postman/
+ *   2. DEV_TOOL env var: any value containing "docker" (e.g. "docker",
+ *      "docker-compose") → first environment file whose name contains "docker"
+ *      (case-insensitive); otherwise first file whose name contains "ddev".
+ *      This matches common naming conventions like "Drupal Ddev …" or just
+ *      "Ddev …".
+ *   3. First *.postman_environment.json in <cwd>/dev/Postman/ (alphabetical)
  *   4. undefined (Newman runs without an environment file)
  */
 export function resolveEnvironmentPath(override?: string): string | undefined {
@@ -109,8 +112,8 @@ export function resolveEnvironmentPath(override?: string): string | undefined {
   const files = fs.readdirSync(dir).sort().filter((f) => f.endsWith('.postman_environment.json'));
   if (files.length === 0) return undefined;
 
-  const devTool = process.env['DEV_TOOL'] ?? 'ddev';
-  const prefix = devTool === 'docker' ? 'Docker' : 'Ddev';
-  const preferred = files.find((f) => f.startsWith(prefix));
+  const devTool = (process.env['DEV_TOOL'] ?? 'ddev').toLowerCase();
+  const keyword = devTool.includes('docker') ? 'docker' : 'ddev';
+  const preferred = files.find((f) => f.toLowerCase().includes(keyword));
   return path.join(dir, preferred ?? files[0]);
 }
