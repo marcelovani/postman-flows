@@ -10,12 +10,12 @@
     "postman-flows",
     "cli"
   ],
-  "author": "Legal Connection",
+  "author": "Marcelo Vani <marcelo@legalconnection.co> (https://github.com/marcelovani)",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/marcelovani/postman-free-flows#readme",
+  "homepage": "https://github.com/marcelovani/newman-flows#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/marcelovani/postman-free-flows.git"
+    "url": "https://github.com/marcelovani/newman-flows.git"
   },
   "engines": {
     "node": ">=18"
