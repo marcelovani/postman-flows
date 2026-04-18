@@ -96,7 +96,8 @@ export function createApp() {
 
   app.patch('/api/organisations/:id', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const org = orgs[req.params.id];
+    const orgId = String(req.params.id);
+    const org = orgs[orgId];
     if (!org) return res.status(404).json({ error: 'Organisation not found' });
     if (req.body.name) org.name = req.body.name;
     res.status(200).json(org);
@@ -104,7 +105,8 @@ export function createApp() {
 
   app.get('/api/organisations/:id', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const org = orgs[req.params.id];
+    const orgId = String(req.params.id);
+    const org = orgs[orgId];
     if (!org) return res.status(404).json({ error: 'Organisation not found' });
     res.status(200).json(org);
   });
@@ -115,18 +117,20 @@ export function createApp() {
 
   app.post('/api/organisations/:id/invitations', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const org = orgs[req.params.id];
+    const orgId = String(req.params.id);
+    const org = orgs[orgId];
     if (!org) return res.status(404).json({ error: 'Organisation not found' });
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ error: 'email is required' });
     const id = `inv-${uid()}`;
-    invitations[id] = { id, orgId: req.params.id, email, status: 'pending' };
+    invitations[id] = { id, orgId, email, status: 'pending' };
     res.status(201).json(invitations[id]);
   });
 
   app.post('/api/invitations/:id/accept', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const inv = invitations[req.params.id];
+    const invId = String(req.params.id);
+    const inv = invitations[invId];
     if (!inv) return res.status(404).json({ error: 'Invitation not found' });
     if (inv.status === 'accepted') {
       return res.status(409).json({ error: 'Invitation already accepted' });

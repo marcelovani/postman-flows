@@ -18,7 +18,7 @@ let server: http.Server;
 beforeAll(async () => {
   const app = createApp();
   await new Promise<void>((resolve, reject) => {
-    server = app.listen(MOCK_PORT, resolve);
+    server = app.listen(MOCK_PORT, () => resolve());
     server.once('error', reject);
   });
 });
