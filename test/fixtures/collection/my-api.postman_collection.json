@@ -1,7 +1,8 @@
 {
   "info": {
     "name": "My API",
-    "description": "Example Postman collection demonstrating the run-flow.js workaround.\n\nAll requests live under Requests/ exactly once. The Flows/ folder contains\ndocumentation-only entries — execution is handled by run-flow.js.",
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "description": "Example Postman collection demonstrating newman-flows.\n\nAll requests live under Requests/ exactly once. The Flows/ folder contains\nflow definitions — each is a FLOW-method request whose pre-request script\ncalls steps([...]) with the ordered step names.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -259,64 +260,54 @@
     },
     {
       "name": "Flows",
-      "description": "Documentation only — describes the flows defined in dev/Postman/flows/. These requests are not executed by Newman; use run-flow.js instead.",
+      "description": "Flow definitions — each FLOW request lists the ordered steps in its pre-request script. Run with: newman-flows run \"<flow name>\"",
       "item": [
         {
           "name": "Organisation creation",
-          "item": [
+          "request": {
+            "method": "FLOW",
+            "url": { "raw": "about:blank", "host": ["about:blank"] }
+          },
+          "event": [
             {
-              "name": "Start: Organisation creation",
-              "request": {
-                "method": "GET",
-                "url": { "raw": "about:blank", "host": ["about:blank"] }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "// This entry exists so the flow is discoverable in the Postman sidebar.",
-                      "// To run it: make test-newman FLOW=\"Organisation creation\"",
-                      "//",
-                      "// Steps:",
-                      "//   1. Organisation admin login",
-                      "//   2. Create Organisation",
-                      "//   3. Edit Organisation",
-                      "//   4. View Organisation"
-                    ]
-                  }
-                }
-              ]
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run: newman-flows run \"Organisation creation\"",
+                  "steps([",
+                  "  'Organisation admin login',",
+                  "  'Create Organisation',",
+                  "  'Edit Organisation',",
+                  "  'View Organisation'",
+                  "]);"
+                ]
+              }
             }
           ]
         },
         {
           "name": "Member invitation",
-          "item": [
+          "request": {
+            "method": "FLOW",
+            "url": { "raw": "about:blank", "host": ["about:blank"] }
+          },
+          "event": [
             {
-              "name": "Start: Member invitation",
-              "request": {
-                "method": "GET",
-                "url": { "raw": "about:blank", "host": ["about:blank"] }
-              },
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "exec": [
-                      "// This entry exists so the flow is discoverable in the Postman sidebar.",
-                      "// To run it: make test-newman FLOW=\"Member invitation\"",
-                      "//",
-                      "// Steps:",
-                      "//   1. Organisation admin login",
-                      "//   2. Create Organisation",
-                      "//   3. Organisation member login",
-                      "//   4. Invite member",
-                      "//   5. Accept invitation"
-                    ]
-                  }
-                }
-              ]
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run: newman-flows run \"Member invitation\"",
+                  "steps([",
+                  "  'Organisation admin login',",
+                  "  'Create Organisation',",
+                  "  'Organisation member login',",
+                  "  'Invite member',",
+                  "  'Accept invitation'",
+                  "]);"
+                ]
+              }
             }
           ]
         }
