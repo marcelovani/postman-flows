@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Running Postman Flows in CI Without Paying for Enterprise — Our Workaround</title>
+  </head>
+  <body>
+    <h1>Running Postman Flows in CI Without Paying for Enterprise — Our Workaround</h1>
+
+    <p>
+      We hit a wall. We had a perfectly organised Postman collection, a clean CI pipeline, and a
+      desire to run multi-step API flows automatically on every pull request. The only thing
+      standing between us and that goal was a paywall.
+    </p>
+
+    <p>Here&#8217;s how we got around it &#8212; without duplicating a single request.</p>
+
+    <hr />
+
+    <h2>The Problem: We Wanted Flows, Not Just Folders</h2>
+
+    <p>
+      Our backend exposes a JSON REST API. We use Postman to document and test every endpoint. After
+      a while, individual endpoint tests started feeling hollow &#8212; they told us each request
+      worked, not whether the API held together as a system.
+    </p>
+
+    <p>
+      What we really needed to validate was <em>sequences</em>. The kind of journey a real client
+      goes through:
+    </p>
+
+    <ul>
+      <li>Admin logs in</li>
+      <li>Creates an organisation</li>
+      <li>Edits it</li>
+      <li>Views it to confirm the change persisted</li>
+    </ul>
+
+    <p>
+      Or a more complex one involving two users &#8212; an admin who creates an organisation and
+      sends an invitation, and a member who logs in separately and accepts it. Each step depends on
+      the one before. The invitation ID from step four has to reach step five; the access token from
+      step one has to reach every authenticated request after it.
+    </p>
+
+    <p>
+      These aren&#8217;t just endpoint tests. They&#8217;re <em>user journeys</em> expressed as API
+      calls.
+    </p>
+
+    <p>
+      Postman has a feature built for exactly this: <strong>Flows</strong>. It&#8217;s a visual
+      canvas, distinct from the Collections view, where you drag saved requests onto a board,
+      connect them with arrows, and define the sequence without writing orchestration code.
+      Variables pipe automatically between steps.
+    </p>
+
+    <figure>
+      <img src="images/placeholder.svg" alt="Postman Flows canvas — Organisation creation flow" />
+      <figcaption>
+        The Postman Flows canvas showing the Organisation creation flow. Request nodes are connected
+        by arrows; variable bindings are visible between steps.
+      </figcaption>
+    </figure>
+
+    <p>
+      We started building flows there. They were clear, maintainable, and made it immediately
+      obvious how the API was meant to be used.
+    </p>
+
+    <p>Then we tried to run them in CI.</p>
+
+    <hr />
+
+    <h2>The Limitation: Postman Flows Require Enterprise to Run from CLI</h2>
+
+    <p>
+      Postman has a separate CLI tool (distinct from
+      <a href="https://github.com/postmanlabs/newman">Newman</a>, Postman&#8217;s open-source
+      collection runner) that includes a <code>postman flows run</code> command. We got excited. We
+      <a href="https://learning.postman.com/docs/postman-flows/tutorials/video/create-first-flow"
+        >read the docs</a
+      >. Then we hit this:
+    </p>
+
+    <blockquote>
+      <p><code>postman flows run</code> requires a Postman Enterprise plan.</p>
+    </blockquote>
+
+    <figure>
+      <img
+        src="images/placeholder.svg"
+        alt="Postman docs showing postman flows run requires Enterprise"
+      />
+      <figcaption>
+        The Postman documentation showing that <code>postman flows run</code> requires an Enterprise
+        plan.
+      </figcaption>
+    </figure>
+
+    <p>We&#8217;re a small team. Enterprise pricing for a test runner felt like a lot.</p>
+
+    <p>
+      The
+      <a href="https://community.postman.com/t/use-postman-flows-in-ci-cd-github-actions/62677"
+        >community thread on running Flows in CI/CD</a
+      >
+      had been open since 2023 with no free solution. The
+      <a href="https://github.com/postmanlabs/postman-app-support/issues/11770">GitHub issue</a>
+      requesting Newman support for Flows had plenty of &#128077; reactions and no resolution.
+    </p>
+
+    <p>
+      The fallback recommendation was the same everywhere:
+      <em
+        >convert your Flows to a Collection and use
+        <a href="https://github.com/postmanlabs/newman">Newman</a></em
+      >.
+    </p>
+
+    <p>Which brings us to the real problem.</p>
+
+    <hr />
+
+    <h2>Why &#8220;Just Use a Folder&#8221; Doesn&#8217;t Work</h2>
+
+    <p>
+      <a href="https://github.com/postmanlabs/newman">Newman</a> is Postman&#8217;s open-source CLI
+      runner. It takes a collection JSON file and an optional environment file, fires every request
+      in sequence, and reports the results. Free, no account required.
+    </p>
+
+    <p>
+      Newman can organise requests into folders and run a specific folder with
+      <code>--folder</code>. The obvious approach: create a folder per flow, put the requests in
+      order, and run each folder. Sounds right, right?
+    </p>
+
+    <p>There are two problems.</p>
+
+    <p>
+      <strong>First, there&#8217;s no sequencing across folders.</strong> If your flow needs
+      requests from different folders &#8212; a login from <code>Authentication/</code>, a create
+      from <code>Groups/</code> &#8212; you can&#8217;t compose them without copying them.
+      There&#8217;s no concept of &#8220;run this request from over there, then this one from
+      here.&#8221;
+    </p>
+
+    <p>
+      <strong>Second, that duplication compounds fast.</strong> Our collection had duplicate
+      &#8220;Invite User&#8221; requests &#8212; one under <code>Organisation</code>, one under
+      <code>Groups</code>. Every time the endpoint changed, we&#8217;d have to update multiple
+      places.
+    </p>
+
+    <figure>
+      <img
+        src="images/placeholder.svg"
+        alt="Postman collection sidebar showing duplicate requests in different folders"
+      />
+      <figcaption>
+        Both copies of &#8220;Invite User&#8221; visible side by side under different parent folders
+        &#8212; the duplication problem in plain sight.
+      </figcaption>
+    </figure>
+
+    <p>
+      Postman Flows solve this elegantly on the canvas &#8212; you drag the same request block into
+      multiple flows without duplicating anything. In a Collection, there&#8217;s no concept of a
+      reference or alias.
+    </p>
+
+    <hr />
+
+    <h2>What We Tried First: <code>setNextRequest()</code></h2>
+
+    <p>
+      Newman supports <code>pm.execution.setNextRequest()</code>. Call it from a test script and
+      Newman will jump to a different request instead of continuing sequentially.
+    </p>
+
+    <p>
+      The idea: keep all requests in a <code>Requests/</code> folder (defined once), add a
+      <code>Flows/</code> folder with lightweight entry-point requests, and have each entry point
+      set up a sequence of step names. A collection-level test script acts as a router:
+    </p>
+
+    <pre><code>// Collection-level test script — the "flow router"
+const stepsJson = pm.globals.get('_flow_steps');
+if (!stepsJson) return;
+
+const steps = JSON.parse(stepsJson);
+const idx = steps.indexOf(pm.info.requestName);
+
+if (idx === -1) return;
+
+const nextIdx = idx + 1;
+if (nextIdx &lt; steps.length) {
+  pm.execution.setNextRequest(steps[nextIdx]);
+} else {
+  pm.globals.unset('_flow_steps');
+  pm.execution.setNextRequest(null);
+}
+</code></pre>
+
+    <p>We got excited. We ran it. This appeared in the terminal:</p>
+
+    <pre><code>Attempting to set next request to Organisation admin login
+</code></pre>
+
+    <p>And then Newman stopped. One request executed.</p>
+
+    <p>
+      The issue: when you pass <code>--folder "Organisation creation"</code> to Newman, it only
+      <em>loads</em> the requests in that folder. <code>Organisation admin login</code> lived in
+      <code>Requests/User/</code> &#8212; a completely separate folder Newman hadn&#8217;t loaded.
+      From its perspective, that request didn&#8217;t exist.
+    </p>
+
+    <p>
+      <code>setNextRequest()</code> works across folders when you run the <em>entire</em> collection
+      without <code>--folder</code>, but then you have no way to run just one flow. The state
+      management quickly becomes unmanageable.
+    </p>
+
+    <hr />
+
+    <h2>The Solution: Generate a Temporary Collection</h2>
+
+    <p>We stepped back and asked a simpler question: <em>what does Newman actually need?</em></p>
+
+    <p>
+      Newman needs a collection file. It doesn&#8217;t care where that file came from. So instead of
+      trying to make the collection flow-aware at runtime, we generate a
+      <strong>temporary, flat collection</strong> containing exactly the requests for a given flow
+      &#8212; pulled from the main collection &#8212; and run Newman against that.
+    </p>
+
+    <p>
+      Requests are still defined exactly once. The flow definition is a tiny JSON file listing step
+      names in order. A Node.js script does the assembly.
+    </p>
+
+    <h3>The flow definitions</h3>
+
+    <pre><code>// dev/Postman/flows/org-creation.json
+{
+  "name": "Organisation creation",
+  "description": "Admin logs in, creates an organisation, edits it, and views it.",
+  "steps": [
+    "Organisation admin login",
+    "Create Organisation",
+    "Edit Organisation",
+    "View Organisation"
+  ]
+}
+</code></pre>
+
+    <pre><code>// dev/Postman/flows/member-invitation.json
+{
+  "name": "Member invitation",
+  "description": "Admin creates an org, member logs in, admin invites them, member accepts.",
+  "steps": [
+    "Organisation admin login",
+    "Create Organisation",
+    "Organisation member login",
+    "Invite member",
+    "Accept invitation"
+  ]
+}
+</code></pre>
+
+    <h3>The runner script</h3>
+
+    <p><code>run-flow.js</code> takes two inputs that already exist in any Postman project:</p>
+
+    <ul>
+      <li>
+        <strong>The collection JSON</strong> &#8212; exported from Postman desktop (<em
+          >File &#8594; Export &#8594; Collection v2.1</em
+        >). This contains every request definition, test script, and variable.
+      </li>
+      <li>
+        <strong>The environment JSON</strong> &#8212; also exported from Postman. It holds the base
+        URL, credentials, and any environment-specific values.
+      </li>
+    </ul>
+
+    <p>
+      The script reads both, looks up the named requests, assembles a temporary collection, and
+      hands it to Newman:
+    </p>
+
+    <pre><code>// dev/Postman/run-flow.js (abridged)
+function findRequest(items, name) {
+  for (const item of items) {
+    if (item.item) {
+      const found = findRequest(item.item, name);
+      if (found) return found;
+    } else if (item.name === name) {
+      return item;
+    }
+  }
+  return null;
+}
+
+const flowItems = flowDef.steps.map(stepName =&gt; {
+  const req = findRequest(collection.item, stepName);
+  if (!req) { console.error(`Step "${stepName}" not found`); process.exit(1); }
+  return req;
+});
+
+const tempCollection = {
+  info: { ...collection.info, name: `Flow: ${flowDef.name}` },
+  item: flowItems,
+};
+
+newman.run({ collection: tempCollection, environment: envFile, ... });
+</code></pre>
+
+    <h3>The repository layout</h3>
+
+    <pre><code>project-root/
+├── mock-server.js                               ← demo mock API (npm run mock)
+├── test.js                                      ← starts mock, runs all flows, stops mock (npm test)
+└── dev/
+    └── Postman/
+        ├── collection/
+        │   └── my-api.postman_collection.json   ← exported from Postman
+        ├── environments/
+        │   ├── environment.mock.postman_environment.json   ← used by npm test (demo)
+        │   ├── environment.local.postman_environment.json  ← your local API
+        │   └── environment.ci.postman_environment.json     ← CI / staging
+        ├── flows/
+        │   ├── org-creation.json
+        │   └── member-invitation.json
+        └── run-flow.js
+</code></pre>
+
+    <h3>Sample output</h3>
+
+    <pre><code>[test] Starting mock server on port 3000...
+[test] Server is ready.
+
+▶ Running flow: Member invitation
+  Steps: Organisation admin login → Create Organisation → Organisation member login → Invite member → Accept invitation
+
+→ Organisation admin login
+  POST http://localhost:3000/api/auth/login [200 OK, 366B, 23ms]
+  ✓  Status code is 200
+  ✓  Response has access_token
+
+→ Create Organisation
+  POST http://localhost:3000/api/organisations [201 Created, 368B, 3ms]
+  ✓  Status code is 201
+  ✓  Response has organisation id
+
+  ... (remaining steps) ...
+
+┌─────────────────────────┬──────────┬────────┐
+│                         │ executed │ failed │
+├─────────────────────────┼──────────┼────────┤
+│              requests   │        5 │      0 │
+│              assertions │        9 │      0 │
+└─────────────────────────┴──────────┴────────┘
+
+✅ Flow "Member invitation" passed.
+✅ Flow "Organisation creation" passed.
+
+[test] Stopping mock server...
+</code></pre>
+
+    <hr />
+
+    <h2>Running the Flows</h2>
+
+    <h3>Demo &#8212; against the mock server</h3>
+
+    <p>
+      <code>npm test</code> is self-contained. It starts the mock server, runs every flow against
+      it, and stops it afterwards. No real API, no credentials, no network required.
+    </p>
+
+    <pre><code>npm install
+npm test
+</code></pre>
+
+    <p>To run a single flow against the mock server:</p>
+
+    <pre><code># Terminal 1 — start the mock server
+npm run mock
+
+# Terminal 2 — run one flow
+ENV=mock node dev/Postman/run-flow.js "Organisation creation"
+ENV=mock node dev/Postman/run-flow.js "Member invitation"
+</code></pre>
+
+    <h3>Pointing at your real API</h3>
+
+    <p>
+      When adapting this for your own project, replace the mock with your real backend. Export your
+      Postman collection and environment files into the same folder structure, then run:
+    </p>
+
+    <pre><code># Against a local dev server (uses environment.local.postman_environment.json)
+node dev/Postman/run-flow.js "Organisation creation"
+
+# Against a staging or CI server (uses environment.ci.postman_environment.json)
+ENV=ci node dev/Postman/run-flow.js "Organisation creation"
+</code></pre>
+
+    <p>
+      The environment files contain the <code>base_url</code> and credentials for each target. For
+      CI, set <code>ADMIN_USERNAME</code>, <code>ADMIN_PASSWORD</code>,
+      <code>MEMBER_USERNAME</code>, and <code>MEMBER_PASSWORD</code> as environment variables (or
+      GitHub Actions secrets).
+    </p>
+
+    <hr />
+
+    <h2>CI Integration</h2>
+
+    <p>In GitHub Actions, the flows run automatically on every push and pull request:</p>
+
+    <pre><code>- name: Run Newman — all flows
+  run: npm test
+
+- name: Store Newman artifacts
+  if: always()
+  uses: actions/upload-artifact@v4
+  with:
+    name: newman-results
+    path: tests/results/newman
+    retention-days: 7
+</code></pre>
+
+    <p>
+      Adding a new flow requires no changes to <code>run-flow.js</code> or the CI workflow. Drop a
+      new <code>.json</code> file into <code>dev/Postman/flows/</code> and it&#8217;s automatically
+      picked up on the next run.
+    </p>
+
+    <figure>
+      <img
+        src="images/placeholder.svg"
+        alt="GitHub Actions run with Newman flow steps passing and artifact uploaded"
+      />
+      <figcaption>
+        A passing GitHub Actions run: the Newman step shows green and the
+        <code>newman-results</code> artifact is listed in the Summary tab.
+      </figcaption>
+    </figure>
+
+    <hr />
+
+    <h2>What We Gained</h2>
+
+    <ul>
+      <li>
+        <strong>No duplication.</strong> Every request is defined exactly once. Flows are just
+        ordered lists of names.
+      </li>
+      <li>
+        <strong>Free plan only.</strong> No Enterprise subscription, no cloud execution, no Newman
+        patches.
+      </li>
+      <li>
+        <strong>Postman Flows canvas still works for design.</strong> We kept using it to diagram
+        and document &#8212; just not to run.
+      </li>
+      <li>
+        <strong>CI-friendly.</strong> JUnit XML and HTML reports are generated per flow and uploaded
+        as artifacts.
+      </li>
+      <li>
+        <strong>Self-discoverable.</strong> Drop a new <code>.json</code> into
+        <code>dev/Postman/flows/</code> and <code>npm test</code> picks it up &#8212; no other
+        changes needed.
+      </li>
+    </ul>
+
+    <hr />
+
+    <h2>Limitations</h2>
+
+    <p>This approach is a workaround, not a first-class solution.</p>
+
+    <p>
+      <strong
+        ><code>pm.execution.runRequest()</code> is the right answer &#8212; when it works.</strong
+      >
+      Postman shipped this API in 2025 and it does exactly what we wanted: invoke any saved request
+      from a script without duplication. It doesn&#8217;t work in Newman yet. If and when Newman
+      gains support, <code>run-flow.js</code> becomes unnecessary.
+    </p>
+
+    <p>
+      <strong>Step names must match exactly.</strong> If someone renames a request in the Postman
+      desktop and exports the collection without updating the flow JSON, the runner exits with a
+      helpful error. It&#8217;s a light coupling, but it&#8217;s there.
+    </p>
+
+    <p>
+      <strong>Parallel branches aren&#8217;t supported.</strong> Postman Flows can run request
+      blocks in parallel on the visual canvas. Our sequential runner can&#8217;t. Every flow is a
+      straight line &#8212; which covers the vast majority of API test scenarios.
+    </p>
+
+    <hr />
+
+    <h2>The Takeaway</h2>
+
+    <p>To be blunt: this workaround is not as good as Postman Flows.</p>
+
+    <p>
+      Flows give you a visual canvas where sequences are immediately legible &#8212; you can see
+      what connects to what, where variables flow between steps, and how branches fork. Our JSON
+      files and a Node.js script are a pale imitation of that.
+    </p>
+
+    <p>
+      If your team is already on Enterprise, use <code>postman flows run</code> &#8212; it&#8217;s
+      the right tool.
+    </p>
+
+    <p>
+      But if you&#8217;re on the free plan and need multi-step API flows in CI without duplicating
+      request definitions, the underlying problem is solvable with the tools you already have. A
+      small Node.js script and a handful of JSON files gets you most of the way there.
+    </p>
+
+    <p>
+      If Postman ever ships Newman support for Flows on the free plan, delete
+      <code>run-flow.js</code> and don&#8217;t look back.
+    </p>
+
+    <p>
+      The full implementation referenced in this post is at
+      <a href="https://github.com/marcelovani/postman-flows">github.com/marcelovani/postman-flows</a
+      >.
+    </p>
+
+    <hr />
+
+    <h2>Try It Now</h2>
+
+    <p>
+      The repo ships with a built-in mock server so you can run every flow immediately, without a
+      real API or a Postman account.
+    </p>
+
+    <blockquote>
+      <p>
+        <strong>About the demo:</strong> The mock server (<code>mock-server.js</code>) is a
+        lightweight Express app that simulates every API endpoint used in the collection. It runs
+        locally on port 3000 and accepts any credentials. This lets you explore the approach without
+        connecting to a real backend. When you adapt this for your own project, you point the flows
+        at your real API instead &#8212; see <em>Pointing at your real API</em> above.
+      </p>
+    </blockquote>
+
+    <pre><code>git clone https://github.com/marcelovani/postman-flows.git
+cd postman-flows
+npm install
+npm test
+</code></pre>
+
+    <p>
+      <code>npm test</code> starts the mock server, runs every flow, and shuts it down. You should
+      see:
+    </p>
+
+    <pre><code>✅ Flow "Member invitation" passed.
+✅ Flow "Organisation creation" passed.
+</code></pre>
+  </body>
+</html>

@@ -1,433 +1,310 @@
-# Running Postman Flows in CI Without Paying for Enterprise — Our Workaround
+# newman-flows
 
-We hit a wall. We had a perfectly organised Postman collection, a clean CI pipeline,
-and a desire to run multi-step API flows automatically on every pull request. The only
-thing standing between us and that goal was a paywall.
+> Multi-step Postman flow runner for the free plan — no Enterprise required.
 
-Here's how we got around it — without duplicating a single request.
+`newman-flows` sits on top of [Newman](https://github.com/postmanlabs/newman) and adds the one thing Newman doesn't have: **flows**. A flow is an ordered sequence of named requests drawn from your Postman collection. Each request is defined exactly once; a flow just lists the steps to run and in what order.
 
----
-
-## The Problem: We Wanted Flows, Not Just Folders
-
-Our backend exposes a JSON REST API. We use Postman to document and test every endpoint.
-After a while, individual endpoint tests started feeling hollow — they told us each
-request worked, not whether the API held together as a system.
-
-What we really needed to validate was *sequences*. The kind of journey a real client
-goes through:
-
-- Admin logs in
-- Creates an organisation
-- Edits it
-- Views it to confirm the change persisted
-
-Or a more complex one involving two users — an admin who creates an organisation and
-sends an invitation, and a member who logs in separately and accepts it. Each step
-depends on the one before. The invitation ID from step four has to reach step five; the
-access token from step one has to reach every authenticated request after it.
-
-These aren't just endpoint tests. They're *user journeys* expressed as API calls.
-
-Postman has a feature built for exactly this: **Flows**. It's a visual canvas, distinct
-from the Collections view, where you drag saved requests onto a board, connect them
-with arrows, and define the sequence without writing orchestration code. Variables pipe
-automatically between steps.
-
-![Postman Flows canvas — Organisation creation flow](images/placeholder.svg)
-*The Postman Flows canvas showing the Organisation creation flow. Request nodes are connected by arrows; variable bindings are visible between steps.*
-
-We started building flows there. They were clear, maintainable, and made it immediately
-obvious how the API was meant to be used.
-
-Then we tried to run them in CI.
-
----
-
-## The Limitation: Postman Flows Require Enterprise to Run from CLI
-
-Postman has a separate CLI tool (distinct from [Newman][newman], Postman's open-source
-collection runner) that includes a `postman flows run` command. We got excited. We
-[read the docs][flows-docs]. Then we hit this:
-
-> `postman flows run` requires a Postman Enterprise plan.
-
-![Postman docs showing postman flows run requires Enterprise](images/placeholder.svg)
-*The Postman documentation showing that `postman flows run` requires an Enterprise plan.*
-
-We're a small team. Enterprise pricing for a test runner felt like a lot.
-
-The [community thread on running Flows in CI/CD][thread] had been open since 2023 with
-no free solution. The [GitHub issue][gh-issue] requesting Newman support for Flows had
-plenty of 👍 reactions and no resolution.
-
-The fallback recommendation was the same everywhere: *convert your Flows to a
-Collection and use [Newman][newman]*.
-
-Which brings us to the real problem.
-
----
-
-## Why "Just Use a Folder" Doesn't Work
-
-[Newman][newman] is Postman's open-source CLI runner. It takes a collection JSON file
-and an optional environment file, fires every request in sequence, and reports the
-results. Free, no account required.
-
-Newman can organise requests into folders and run a specific folder with `--folder`.
-The obvious approach: create a folder per flow, put the requests in order, and run each
-folder. Sounds right, right?
-
-There are two problems.
-
-**First, there's no sequencing across folders.** If your flow needs requests from
-different folders — a login from `Authentication/`, a create from `Groups/` — you
-can't compose them without copying them. There's no concept of "run this request from
-over there, then this one from here."
-
-**Second, that duplication compounds fast.** Our collection had duplicate "Invite User"
-requests — one under `Organisation`, one under `Groups`. Every time the endpoint
-changed, we'd have to update multiple places.
-
-![Postman collection sidebar showing duplicate requests in different folders](images/placeholder.svg)
-*Both copies of "Invite User" visible side by side under different parent folders — the duplication problem in plain sight.*
-
-Postman Flows solve this elegantly on the canvas — you drag the same request block
-into multiple flows without duplicating anything. In a Collection, there's no concept
-of a reference or alias.
-
----
-
-## What We Tried First: `setNextRequest()`
-
-Newman supports `pm.execution.setNextRequest()`. Call it from a test script and Newman
-will jump to a different request instead of continuing sequentially.
-
-The idea: keep all requests in a `Requests/` folder (defined once), add a `Flows/`
-folder with lightweight entry-point requests, and have each entry point set up a
-sequence of step names. A collection-level test script acts as a router:
-
-```javascript
-// Collection-level test script — the "flow router"
-const stepsJson = pm.globals.get('_flow_steps');
-if (!stepsJson) return;
-
-const steps = JSON.parse(stepsJson);
-const idx = steps.indexOf(pm.info.requestName);
-
-if (idx === -1) return;
-
-const nextIdx = idx + 1;
-if (nextIdx < steps.length) {
-    pm.execution.setNextRequest(steps[nextIdx]);
-} else {
-    pm.globals.unset('_flow_steps');
-    pm.execution.setNextRequest(null);
-}
+```bash
+npx newman-flows list
+npx newman-flows run "Org admin creates org"
+npx newman-flows run --all
+npx newman-flows validate
 ```
 
-We got excited. We ran it. This appeared in the terminal:
+---
+
+## How it relates to Newman
+
+Newman runs a collection. `newman-flows` decides _which_ collection to assemble and in _what order_, then hands it to Newman:
 
 ```
-Attempting to set next request to Organisation admin login
+newman-flows
+  └── reads flow definitions from the Postman collection (Flows/ folder)
+  └── assembles a temporary flat collection per flow
+  └── calls newman.run() for each flow    ← Newman lives here
+  └── aggregates and reports pass / fail
 ```
 
-And then Newman stopped. One request executed.
-
-The issue: when you pass `--folder "Organisation creation"` to Newman, it only *loads*
-the requests in that folder. `Organisation admin login` lived in `Requests/User/` — a
-completely separate folder Newman hadn't loaded. From its perspective, that request
-didn't exist.
-
-`setNextRequest()` works across folders when you run the *entire* collection without
-`--folder`, but then you have no way to run just one flow. The state management quickly
-becomes unmanageable.
+Newman is a runtime dependency — it updates independently, and `newman-flows` benefits from every Newman bug fix automatically. The relationship is the same as `jest` and `node`.
 
 ---
 
-## The Solution: Generate a Temporary Collection
+## Installation
 
-We stepped back and asked a simpler question: *what does Newman actually need?*
+```bash
+# In your project
+npm install --save-dev newman-flows
 
-Newman needs a collection file. It doesn't care where that file came from. So instead
-of trying to make the collection flow-aware at runtime, we generate a **temporary, flat
-collection** containing exactly the requests for a given flow — pulled from the main
-collection — and run Newman against that.
+# Or globally
+npm install -g newman-flows
+```
 
-Requests are still defined exactly once. The flow definition is a tiny JSON file
-listing step names in order. A Node.js script does the assembly.
+Newman itself is a peer dependency and installs automatically.
 
-### The flow definitions
+---
+
+## Usage
+
+### Run a single flow
+
+```bash
+npx newman-flows run "Org admin creates org"
+```
+
+### Run all flows
+
+```bash
+npx newman-flows run --all
+```
+
+### Point to a specific collection or environment
+
+```bash
+npx newman-flows run "Org admin creates org" \
+  --collection ./dev/Postman/my-api.postman_collection.json \
+  --env ./dev/Postman/staging.postman_environment.json
+
+npx newman-flows run --all \
+  --collection ./dev/Postman/my-api.postman_collection.json
+```
+
+### Write reports to a custom directory
+
+```bash
+npx newman-flows run --all --results-dir ./ci-reports
+```
+
+### List flows
+
+Prints every flow in the collection with its step count — useful for discovering what's available before running:
+
+```bash
+npx newman-flows list
+npx newman-flows list --collection ./dev/Postman/my-api.postman_collection.json
+```
+
+Example output:
+
+```
+Flows in "My API":
+
+  • Org admin creates org       (4 steps)
+  • Invite member to org        (5 steps)
+  • User Updates password       (4 steps)
+```
+
+### Validate the collection
+
+Checks that all flow definitions are well-formed and every step name resolves to a real request:
+
+```bash
+npx newman-flows validate
+npx newman-flows validate --collection ./dev/Postman/my-api.postman_collection.json
+```
+
+### In npm scripts (no `npx` needed)
 
 ```json
-// dev/Postman/flows/org-creation.json
 {
-  "name": "Organisation creation",
-  "description": "Admin logs in, creates an organisation, edits it, and views it.",
-  "steps": [
-    "Organisation admin login",
-    "Create Organisation",
-    "Edit Organisation",
-    "View Organisation"
-  ]
-}
-```
-
-```json
-// dev/Postman/flows/member-invitation.json
-{
-  "name": "Member invitation",
-  "description": "Admin creates an org, member logs in, admin invites them, member accepts.",
-  "steps": [
-    "Organisation admin login",
-    "Create Organisation",
-    "Organisation member login",
-    "Invite member",
-    "Accept invitation"
-  ]
-}
-```
-
-### The runner script
-
-`run-flow.js` takes two inputs that already exist in any Postman project:
-
-- **The collection JSON** — exported from Postman desktop (`File → Export → Collection v2.1`). This contains every request definition, test script, and variable.
-- **The environment JSON** — also exported from Postman. It holds the base URL, credentials, and any environment-specific values.
-
-The script reads both, looks up the named requests, assembles a temporary collection,
-and hands it to Newman:
-
-```javascript
-// dev/Postman/run-flow.js (abridged)
-function findRequest(items, name) {
-  for (const item of items) {
-    if (item.item) {
-      const found = findRequest(item.item, name);
-      if (found) return found;
-    } else if (item.name === name) {
-      return item;
-    }
+  "scripts": {
+    "list:flows": "newman-flows list",
+    "test:flow": "newman-flows run",
+    "test:flows": "newman-flows run --all",
+    "validate:collection": "newman-flows validate"
   }
-  return null;
 }
-
-const flowItems = flowDef.steps.map(stepName => {
-  const req = findRequest(collection.item, stepName);
-  if (!req) { console.error(`Step "${stepName}" not found`); process.exit(1); }
-  return req;
-});
-
-const tempCollection = {
-  info: { ...collection.info, name: `Flow: ${flowDef.name}` },
-  item: flowItems,
-};
-
-newman.run({ collection: tempCollection, environment: envFile, ... });
 ```
 
-### The repository layout
-
-```
-project-root/
-├── mock-server.js                               ← demo mock API (npm run mock)
-├── test.js                                      ← starts mock, runs all flows, stops mock (npm test)
-└── dev/
-    └── Postman/
-        ├── collection/
-        │   └── my-api.postman_collection.json   ← exported from Postman
-        ├── environments/
-        │   ├── environment.mock.postman_environment.json   ← used by npm test (demo)
-        │   ├── environment.local.postman_environment.json  ← your local API
-        │   └── environment.ci.postman_environment.json     ← CI / staging
-        ├── flows/
-        │   ├── org-creation.json
-        │   └── member-invitation.json
-        └── run-flow.js
-```
-
-### Sample output
-
-```
-[test] Starting mock server on port 3000...
-[test] Server is ready.
-
-▶ Running flow: Member invitation
-  Steps: Organisation admin login → Create Organisation → Organisation member login → Invite member → Accept invitation
-
-→ Organisation admin login
-  POST http://localhost:3000/api/auth/login [200 OK, 366B, 23ms]
-  ✓  Status code is 200
-  ✓  Response has access_token
-
-→ Create Organisation
-  POST http://localhost:3000/api/organisations [201 Created, 368B, 3ms]
-  ✓  Status code is 201
-  ✓  Response has organisation id
-
-  ... (remaining steps) ...
-
-┌─────────────────────────┬──────────┬────────┐
-│                         │ executed │ failed │
-├─────────────────────────┼──────────┼────────┤
-│              requests   │        5 │      0 │
-│              assertions │        9 │      0 │
-└─────────────────────────┴──────────┴────────┘
-
-✅ Flow "Member invitation" passed.
-✅ Flow "Organisation creation" passed.
-
-[test] Stopping mock server...
+```bash
+npm run list:flows
+npm run test:flow -- "Org admin creates org"
+npm run test:flows
+npm run validate:collection
 ```
 
 ---
 
-## Running the Flows
+## How flows work
 
-### Demo — against the mock server
+### Collection structure
 
-`npm test` is self-contained. It starts the mock server, runs every flow against it,
-and stops it afterwards. No real API, no credentials, no network required.
+Organise your Postman collection into two top-level folders:
 
-```bash
-npm install
-npm test
+```
+My API (collection)
+├── Requests/          ← every request lives here exactly once
+│   ├── Auth/
+│   ├── Users/
+│   └── Orders/
+└── Flows/             ← flat; each entry is a flow definition
+    ├── Create order
+    └── Cancel order
 ```
 
-To run a single flow against the mock server:
+Requests are defined **exactly once** in `Requests/`. Flows only reference them by name. No duplication, no copy-paste.
 
-```bash
-# Terminal 1 — start the mock server
-npm run mock
+### Flow definitions
 
-# Terminal 2 — run one flow
-ENV=mock node dev/Postman/run-flow.js "Organisation creation"
-ENV=mock node dev/Postman/run-flow.js "Member invitation"
+Each entry in `Flows/` is a Postman request with:
+
+- **Method:** `FLOW` (type it literally in Postman's method dropdown — it is not a standard HTTP verb, it is a convention that makes flow definitions visually distinct in the sidebar)
+- **Name:** the flow name, used to select the flow on the command line
+- **Pre-request script:** calls `steps([...])` with the ordered step names
+
+```javascript
+// Org admin logs in, creates an organisation, edits it, and views it.
+// Run: newman-flows run "Org admin creates org"
+steps([
+  "Org admin login",
+  "Create Organization",
+  "Edit Organization",
+  "View Organization",
+]);
 ```
 
-### Pointing at your real API
+Step names must **exactly match** request names in `Requests/`.
 
-When adapting this for your own project, replace the mock with your real backend. Export
-your Postman collection and environment files into the same folder structure, then run:
+### What the runner does
 
-```bash
-# Against a local dev server (uses environment.local.postman_environment.json)
-node dev/Postman/run-flow.js "Organisation creation"
+`newman-flows` finds the matching `Flows/` request, evaluates the pre-request script in a Node.js `vm` sandbox to capture the steps array, looks up each named request anywhere in the collection, assembles a **temporary flat collection** containing only those requests in that order, and passes it to `newman.run()`.
 
-# Against a staging or CI server (uses environment.ci.postman_environment.json)
-ENV=ci node dev/Postman/run-flow.js "Organisation creation"
+The temporary collection is never written to disk — it exists only in memory for the duration of the run.
+
+### Variables between steps
+
+Newman runs each step in sequence. Earlier steps can set `pm.globals` variables that later steps consume — the standard Postman variable mechanism works unchanged:
+
+```javascript
+// In "Create Organization" test script:
+pm.globals.set("org_uuid", pm.response.json().data.id);
+
+// In "Edit Organization" request URL:
+{{url}}/api/v1/organization/{{org_uuid}}
 ```
 
-The environment files contain the `base_url` and credentials for each target. For CI,
-set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `MEMBER_USERNAME`, and `MEMBER_PASSWORD` as
-environment variables (or GitHub Actions secrets).
+### Keeping the collection in your repo
+
+Export the collection from Postman desktop (`File → Export → Collection v2.1`) and commit it alongside your code. By convention, `newman-flows` looks for it in `<project>/dev/Postman/` — but you can point it anywhere with `--collection`.
 
 ---
 
-## CI Integration
+## Collection path
 
-In GitHub Actions, the flows run automatically on every push and pull request:
+By default `newman-flows` looks for a `*.postman_collection.json` file in `<cwd>/dev/Postman/`. Override with a flag:
+
+```bash
+npx newman-flows run --all --collection ./path/to/my.postman_collection.json
+```
+
+---
+
+## Reports
+
+Results are written to `tests/results/newman/`:
+
+| File          | Format                     |
+| ------------- | -------------------------- |
+| `results.xml` | JUnit XML (consumed by CI) |
+| `report.html` | Human-readable HTML report |
+
+---
+
+## CI
 
 ```yaml
-- name: Run Newman — all flows
-  run: npm test
+- name: Run all flows
+  run: npx newman-flows run --all
 
-- name: Store Newman artifacts
+- name: Upload flow reports
   if: always()
   uses: actions/upload-artifact@v4
   with:
-    name: newman-results
+    name: newman-flows-results
     path: tests/results/newman
     retention-days: 7
 ```
 
-Adding a new flow requires no changes to `run-flow.js` or the CI workflow. Drop a new
-`.json` file into `dev/Postman/flows/` and it's automatically picked up on the next run.
-
-![GitHub Actions run with Newman flow steps passing and artifact uploaded](images/placeholder.svg)
-*A passing GitHub Actions run: the Newman step shows green and the `newman-results` artifact is listed in the Summary tab.*
-
 ---
 
-## What We Gained
+## Development
 
-- **No duplication.** Every request is defined exactly once. Flows are just ordered lists of names.
-- **Free plan only.** No Enterprise subscription, no cloud execution, no Newman patches.
-- **Postman Flows canvas still works for design.** We kept using it to diagram and document — just not to run.
-- **CI-friendly.** JUnit XML and HTML reports are generated per flow and uploaded as artifacts.
-- **Self-discoverable.** Drop a new `.json` into `dev/Postman/flows/` and `npm test` picks it up — no other changes needed.
+### Testing the global install locally
 
----
-
-## Limitations
-
-This approach is a workaround, not a first-class solution.
-
-**`pm.execution.runRequest()` is the right answer — when it works.**
-Postman shipped this API in 2025 and it does exactly what we wanted: invoke any saved
-request from a script without duplication. It doesn't work in Newman yet. If and when
-Newman gains support, `run-flow.js` becomes unnecessary.
-
-**Step names must match exactly.** If someone renames a request in the Postman desktop
-and exports the collection without updating the flow JSON, the runner exits with a
-helpful error. It's a light coupling, but it's there.
-
-**Parallel branches aren't supported.** Postman Flows can run request blocks in
-parallel on the visual canvas. Our sequential runner can't. Every flow is a straight
-line — which covers the vast majority of API test scenarios.
-
----
-
-## The Takeaway
-
-To be blunt: this workaround is not as good as Postman Flows.
-
-Flows give you a visual canvas where sequences are immediately legible — you can see
-what connects to what, where variables flow between steps, and how branches fork. Our
-JSON files and a Node.js script are a pale imitation of that.
-
-If your team is already on Enterprise, use `postman flows run` — it's the right tool.
-
-But if you're on the free plan and need multi-step API flows in CI without duplicating
-request definitions, the underlying problem is solvable with the tools you already
-have. A small Node.js script and a handful of JSON files gets you most of the way there.
-
-If Postman ever ships Newman support for Flows on the free plan, delete `run-flow.js`
-and don't look back.
-
-The full implementation referenced in this post is at
-[github.com/marcelovani/postman-flows](https://github.com/marcelovani/postman-flows).
-
----
-
-## Try It Now
-
-The repo ships with a built-in mock server so you can run every flow immediately,
-without a real API or a Postman account.
-
-> **About the demo:** The mock server (`mock-server.js`) is a lightweight Express app
-> that simulates every API endpoint used in the collection. It runs locally on port 3000
-> and accepts any credentials. This lets you explore the approach without connecting to
-> a real backend. When you adapt this for your own project, you point the flows at your
-> real API instead — see [Pointing at your real API](#pointing-at-your-real-api) above.
+Use `npm link` to symlink the local package into the global bin without touching the npm registry. The `prepare` script builds automatically:
 
 ```bash
-git clone https://github.com/marcelovani/postman-flows.git
-cd postman-flows
-npm install
-npm test
+npm link
+
+newman-flows --version
+newman-flows --help
+newman-flows run --all --collection ./path/to/collection.json
 ```
 
-`npm test` starts the mock server, runs every flow, and shuts it down. You should see:
+To unlink when done:
 
+```bash
+npm unlink -g newman-flows
 ```
-✅ Flow "Member invitation" passed.
-✅ Flow "Organisation creation" passed.
+
+Alternatively, `npm pack` produces a tarball you can install anywhere — useful for testing what consumers will actually receive:
+
+```bash
+npm pack                                   # produces newman-flows-x.y.z.tgz
+npm install -g ./newman-flows-x.y.z.tgz
+newman-flows --version
 ```
+
+### Tagging and releasing
+
+See [New releases](#new-releases) below.
 
 ---
 
-[newman]: https://github.com/postmanlabs/newman
-[thread]: https://community.postman.com/t/use-postman-flows-in-ci-cd-github-actions/62677
-[gh-issue]: https://github.com/postmanlabs/postman-app-support/issues/11770
-[flows-docs]: https://learning.postman.com/docs/postman-flows/tutorials/video/create-first-flow
+## New releases
+
+Releases are published to npm automatically when a version tag is pushed. The CI pipeline ([`.github/workflows/publish.yml`](.github/workflows/publish.yml)) runs the full test suite first — if anything fails, nothing is published.
+
+### Prerequisites (one-time setup)
+
+Add an `NPM_TOKEN` secret to the GitHub repository:
+
+1. Go to [npmjs.com](https://www.npmjs.com) → **Access Tokens → Generate New Token → Automation**
+2. Copy the token
+3. In GitHub: **Settings → Secrets and variables → Actions → New repository secret**
+   - Name: `NPM_TOKEN`
+   - Value: the token from step 2
+
+### Releasing a new version
+
+```bash
+# 1. Bump the version — updates package.json, commits, and creates a git tag
+npm version patch   # or: minor / major
+
+# 2. Push the commit and the tag — this triggers the publish workflow
+git push origin newman-flows --follow-tags
+```
+
+The workflow builds the package, runs lint + typecheck + unit + integration tests, then publishes to npm with [provenance attestation](https://docs.npmjs.com/generating-provenance-statements) — a verified link between the published package and this exact git commit, shown as a badge on npmjs.com.
+
+### First publish
+
+The automated workflow requires the package name to already exist on npm. Run the first publish manually:
+
+```bash
+npm run build
+npm publish --access public
+```
+
+All subsequent releases go through the tag → CI → npm pipeline.
+
+---
+
+## Background
+
+For the full story on why this tool exists — the Postman Enterprise paywall, why Newman folders don't solve the problem, and how the temporary-collection approach works — see [medium-post.md](medium-post.md) or the published article on Medium.
+
+---
+
+## License
+
+Apache-2.0

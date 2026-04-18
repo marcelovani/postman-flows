@@ -1,0 +1,18 @@
+# Exclude everything not needed in the published package.
+# The "files" field in package.json whitelists dist/ and src/;
+# .npmignore is a belt-and-suspenders guard.
+
+test/
+examples/
+docs/
+.github/
+medium-post.md
+PLAN.md
+vitest.config.ts
+vitest.setup.ts
+tsconfig.json
+tsconfig.build.json
+eslint.config.js
+.prettierrc
+*.local
+.env*
