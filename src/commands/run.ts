@@ -38,12 +38,17 @@ export function buildTempCollection(
       ...collection.info,
       name: `${collection.info.name} — Flow: ${flowDef.name}`,
     },
-    // Strip collection-level test scripts that reference _flow_steps.
+    // Strip collection-level scripts that reference _flow_steps as an identifier.
     // Those are routing helpers for running the whole collection; they are
     // unnecessary (and break flow isolation) when running a flat sequence.
+    // String literals are stripped first so that a pm.test() label like
+    // "check _flow_steps is not set" doesn't cause a false-positive match.
     event: (collection.event ?? []).filter((e) => {
       const src = (e.script?.exec ?? []).join('\n');
-      return !src.includes('_flow_steps');
+      const stripped = src
+        .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+        .replace(/'(?:[^'\\]|\\.)*'/g, "''");
+      return !/\b_flow_steps\b/.test(stripped);
     }),
     item: flowItems,
   };
@@ -101,13 +106,27 @@ async function runFlowDef(
 // Public API
 // ---------------------------------------------------------------------------
 
-/** Run a single named flow. */
+/**
+ * Run a single named flow from a Postman collection.
+ *
+ * @param opts.collection - Path to the `.postman_collection.json` file, or
+ *   `undefined` to auto-discover from `<cwd>/dev/Postman/`.
+ * @param opts.flow      - Exact name of the flow to run (case-sensitive).
+ * @param opts.env       - Path to a `.postman_environment.json` file, or
+ *   `undefined` to auto-discover / run without an environment.
+ * @param opts.resultsDir - Directory for JUnit + HTML reports. Defaults to
+ *   `<cwd>/tests/results/newman`. Created automatically if absent.
+ *
+ * @throws {Error} If the collection or environment file cannot be resolved.
+ * @throws {Error} If the named flow does not exist in the collection.
+ * @throws {Error} If any Newman test assertion fails.
+ */
 export async function runFlow(opts: RunOptions & { flow: string }): Promise<void> {
   const collectionPath = resolveCollectionPath(opts.collection);
   const envPath = resolveEnvironmentPath(opts.env);
   const resultsDir =
     opts.resultsDir !== undefined
-      ? opts.resultsDir
+      ? path.resolve(process.cwd(), opts.resultsDir)
       : path.join(process.cwd(), 'tests', 'results', 'newman');
 
   const collection = loadCollection(collectionPath);
@@ -116,13 +135,26 @@ export async function runFlow(opts: RunOptions & { flow: string }): Promise<void
   await runFlowDef(collection, flowDef, envPath, resultsDir);
 }
 
-/** Run every flow defined in the collection's Flows/ folder, in order. */
+/**
+ * Run every flow defined in the collection's `Flows/` folder, in declaration order.
+ *
+ * @param opts.collection - Path to the `.postman_collection.json` file, or
+ *   `undefined` to auto-discover from `<cwd>/dev/Postman/`.
+ * @param opts.env       - Path to a `.postman_environment.json` file, or
+ *   `undefined` to auto-discover / run without an environment.
+ * @param opts.resultsDir - Directory for JUnit + HTML reports. Defaults to
+ *   `<cwd>/tests/results/newman`. Created automatically if absent.
+ *
+ * @throws {Error} If the collection or environment file cannot be resolved.
+ * @throws {Error} If the collection contains no flows.
+ * @throws {Error} If any Newman test assertion fails (fails-fast on first failing flow).
+ */
 export async function runAllFlows(opts: RunOptions): Promise<void> {
   const collectionPath = resolveCollectionPath(opts.collection);
   const envPath = resolveEnvironmentPath(opts.env);
   const resultsDir =
     opts.resultsDir !== undefined
-      ? opts.resultsDir
+      ? path.resolve(process.cwd(), opts.resultsDir)
       : path.join(process.cwd(), 'tests', 'results', 'newman');
 
   const collection = loadCollection(collectionPath);
