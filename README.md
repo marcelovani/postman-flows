@@ -56,11 +56,21 @@ npx newman-flows run "Org admin creates org"
 npx newman-flows run --all
 ```
 
-### Run against a specific environment
+### Point to a specific collection or environment
 
 ```bash
-npx newman-flows run "Org admin creates org" --env docker
-npx newman-flows run --all --env docker
+npx newman-flows run "Org admin creates org" \
+  --collection ./dev/Postman/my-api.postman_collection.json \
+  --env ./dev/Postman/staging.postman_environment.json
+
+npx newman-flows run --all \
+  --collection ./dev/Postman/my-api.postman_collection.json
+```
+
+### Write reports to a custom directory
+
+```bash
+npx newman-flows run --all --results-dir ./ci-reports
 ```
 
 ### Validate the collection
@@ -69,6 +79,7 @@ Checks that all flow definitions are well-formed and every step name resolves to
 
 ```bash
 npx newman-flows validate
+npx newman-flows validate --collection ./dev/Postman/my-api.postman_collection.json
 ```
 
 ### In npm scripts (no `npx` needed)
@@ -78,7 +89,7 @@ npx newman-flows validate
   "scripts": {
     "test:flow": "newman-flows run",
     "test:flows": "newman-flows run --all",
-    "validate": "newman-flows validate"
+    "validate:collection": "newman-flows validate"
   }
 }
 ```
@@ -86,7 +97,7 @@ npx newman-flows validate
 ```bash
 npm run test:flow -- "Org admin creates org"
 npm run test:flows
-npm run validate
+npm run validate:collection
 ```
 
 ---
