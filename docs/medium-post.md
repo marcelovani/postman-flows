@@ -419,18 +419,11 @@ packaging, since the runner and the flow storage format need to match.
 
 ---
 
-**Rename the repository to `postman-free-flows`**
+**Repository: `newman-flows`**
 
-The current name `postman-flows` is ambiguous — it sounds like a wrapper around the
-official Postman Flows product. `postman-free-flows` makes the purpose immediately clear:
-running Postman flows on the free plan, without Enterprise.
-
-Steps:
-
-1. Rename the repo on GitHub: **Settings → Repository name → `postman-free-flows`**.
-2. GitHub will redirect the old URL, but update the canonical reference in `README.md`
-   (the `git clone` command and the closing link) to use the new URL.
-3. Update any external references (Medium article, CI badges, `package.json` `"name"` field).
+The package and repository are published as `newman-flows` at
+`https://github.com/marcelovani/newman-flows`, following the `newman-*` ecosystem
+convention used by reporters.
 
 ---
 
