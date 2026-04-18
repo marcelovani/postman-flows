@@ -75,6 +75,18 @@ export interface RunOptions {
   collection: string;
   /** Absolute or relative path to a Postman environment JSON file. */
   env?: string;
-  /** Directory for JUnit XML and HTML reports. Defaults to `<cwd>/test/results/newman`. */
-  resultsDir?: string;
+  /**
+   * Newman reporters to activate. Accepts a single reporter name or an array.
+   * Defaults to `'cli'` when omitted.
+   *
+   * @example ['cli', 'junit', 'htmlextra']
+   */
+  reporters?: string | string[];
+  /**
+   * Per-reporter configuration passed directly to `newman.run()`.
+   * Keys are reporter names; values are the reporter-specific option objects.
+   *
+   * @example { junit: { export: './results.xml' }, htmlextra: { export: './report.html' } }
+   */
+  reporter?: Record<string, unknown>;
 }
