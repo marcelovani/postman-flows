@@ -93,7 +93,30 @@ npm run validate
 
 ## How flows work
 
-Flow definitions live **inside the Postman collection** under a `Flows/` folder. Each flow is a request with method `FLOW`, named after the flow. Its pre-request script calls `steps([...])` with the ordered step names:
+### Collection structure
+
+Organise your Postman collection into two top-level folders:
+
+```
+My API (collection)
+├── Requests/          ← every request lives here exactly once
+│   ├── Auth/
+│   ├── Users/
+│   └── Orders/
+└── Flows/             ← flat; each entry is a flow definition
+    ├── Create order
+    └── Cancel order
+```
+
+Requests are defined **exactly once** in `Requests/`. Flows only reference them by name. No duplication, no copy-paste.
+
+### Flow definitions
+
+Each entry in `Flows/` is a Postman request with:
+
+- **Method:** `FLOW` (type it literally in Postman's method dropdown — it is not a standard HTTP verb, it is a convention that makes flow definitions visually distinct in the sidebar)
+- **Name:** the flow name, used to select the flow on the command line
+- **Pre-request script:** calls `steps([...])` with the ordered step names
 
 ```javascript
 // Org admin logs in, creates an organisation, edits it, and views it.
@@ -106,9 +129,29 @@ steps([
 ]);
 ```
 
-`newman-flows` finds the matching request in `Flows/`, evaluates the pre-request script in a Node.js `vm` sandbox to capture the steps array, looks up each named request anywhere in the collection, assembles a temporary flat collection, and passes it to `newman.run()`.
+Step names must **exactly match** request names in `Requests/`.
 
-Requests are defined **exactly once** in your collection. Flows only reference them by name. No duplication.
+### What the runner does
+
+`newman-flows` finds the matching `Flows/` request, evaluates the pre-request script in a Node.js `vm` sandbox to capture the steps array, looks up each named request anywhere in the collection, assembles a **temporary flat collection** containing only those requests in that order, and passes it to `newman.run()`.
+
+The temporary collection is never written to disk — it exists only in memory for the duration of the run.
+
+### Variables between steps
+
+Newman runs each step in sequence. Earlier steps can set `pm.globals` variables that later steps consume — the standard Postman variable mechanism works unchanged:
+
+```javascript
+// In "Create Organization" test script:
+pm.globals.set("org_uuid", pm.response.json().data.id);
+
+// In "Edit Organization" request URL:
+{{url}}/api/v1/organization/{{org_uuid}}
+```
+
+### Keeping the collection in your repo
+
+Export the collection from Postman desktop (`File → Export → Collection v2.1`) and commit it alongside your code. By convention, `newman-flows` looks for it in `<project>/dev/Postman/` — but you can point it anywhere with `--collection`.
 
 ---
 
