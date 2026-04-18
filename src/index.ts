@@ -12,6 +12,7 @@
  *   if (result.errors.length > 0) { ... }
  */
 
+export { getFlowSummaries, printFlowList } from './commands/list.js';
 export { runFlow, runAllFlows } from './commands/run.js';
 export { validateCollection, printValidationResult } from './commands/validate.js';
 export { loadCollection, resolveCollectionPath, resolveEnvironmentPath, findFolder, findRequest } from './lib/collection.js';
@@ -28,4 +29,5 @@ export type {
   PostmanScript,
   RunOptions,
 } from './lib/types.js';
+export type { FlowSummary } from './commands/list.js';
 export type { ValidationResult } from './commands/validate.js';

@@ -3,6 +3,7 @@
  * newman-flows CLI entry point.
  *
  * Usage:
+ *   newman-flows list                        # list all flows in the collection
  *   newman-flows run "Flow name"             # run one flow
  *   newman-flows run --all                   # run all flows in Flows/ folder
  *   newman-flows run "Flow name" --env docker
@@ -15,6 +16,7 @@
 
 import { Command } from 'commander';
 import pkg from '../package.json';
+import { printFlowList } from './commands/list.js';
 import { runAllFlows, runFlow } from './commands/run.js';
 import { printValidationResult, validateCollection } from './commands/validate.js';
 import { loadCollection, resolveCollectionPath } from './lib/collection.js';
@@ -25,6 +27,25 @@ program
   .name('newman-flows')
   .description('Run multi-step Postman flows via Newman — no Enterprise required.')
   .version(pkg.version, '-V, --version');
+
+// ---------------------------------------------------------------------------
+// list subcommand
+// ---------------------------------------------------------------------------
+
+program
+  .command('list')
+  .description('List all flows defined in the collection with their step counts')
+  .option('--collection <path>', 'path to the Postman collection JSON file')
+  .action((opts: { collection?: string }) => {
+    try {
+      const collectionPath = resolveCollectionPath(opts.collection);
+      const collection = loadCollection(collectionPath);
+      printFlowList(collection);
+    } catch (err) {
+      console.error((err as Error).message ?? err);
+      process.exit(1);
+    }
+  });
 
 // ---------------------------------------------------------------------------
 // run subcommand
