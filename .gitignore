@@ -1,2 +1,6 @@
 node_modules/
-tests/results/
+dist/
+test/coverage/
+test/results/
+*.local
+.env*
