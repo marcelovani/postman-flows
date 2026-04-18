@@ -75,6 +75,6 @@ export interface RunOptions {
   collection: string;
   /** Absolute or relative path to a Postman environment JSON file. */
   env?: string;
-  /** Directory where junit XML and HTML reports are written. Defaults to <cwd>/tests/results/newman. */
+  /** Directory for JUnit XML and HTML reports. Defaults to `<cwd>/test/results/newman`. */
   resultsDir?: string;
 }

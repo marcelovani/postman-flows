@@ -114,8 +114,8 @@ async function runFlowDef(
  * @param opts.flow      - Exact name of the flow to run (case-sensitive).
  * @param opts.env       - Path to a `.postman_environment.json` file, or
  *   `undefined` to auto-discover / run without an environment.
- * @param opts.resultsDir - Directory for JUnit + HTML reports. Defaults to
- *   `<cwd>/tests/results/newman`. Created automatically if absent.
+ * @param opts.resultsDir - Directory for JUnit XML and HTML reports. Defaults
+ *   to `<cwd>/test/results/newman`. Created automatically if absent.
  *
  * @throws {Error} If the collection or environment file cannot be resolved.
  * @throws {Error} If the named flow does not exist in the collection.
@@ -127,7 +127,7 @@ export async function runFlow(opts: RunOptions & { flow: string }): Promise<void
   const resultsDir =
     opts.resultsDir !== undefined
       ? path.resolve(process.cwd(), opts.resultsDir)
-      : path.join(process.cwd(), 'tests', 'results', 'newman');
+      : path.join(process.cwd(), 'test', 'results', 'newman');
 
   const collection = loadCollection(collectionPath);
   const flowReq = findFlowRequest(collection, opts.flow);
@@ -142,8 +142,8 @@ export async function runFlow(opts: RunOptions & { flow: string }): Promise<void
  *   `undefined` to auto-discover from `<cwd>/dev/Postman/`.
  * @param opts.env       - Path to a `.postman_environment.json` file, or
  *   `undefined` to auto-discover / run without an environment.
- * @param opts.resultsDir - Directory for JUnit + HTML reports. Defaults to
- *   `<cwd>/tests/results/newman`. Created automatically if absent.
+ * @param opts.resultsDir - Directory for JUnit XML and HTML reports. Defaults
+ *   to `<cwd>/test/results/newman`. Created automatically if absent.
  *
  * @throws {Error} If the collection or environment file cannot be resolved.
  * @throws {Error} If the collection contains no flows.
@@ -155,7 +155,7 @@ export async function runAllFlows(opts: RunOptions): Promise<void> {
   const resultsDir =
     opts.resultsDir !== undefined
       ? path.resolve(process.cwd(), opts.resultsDir)
-      : path.join(process.cwd(), 'tests', 'results', 'newman');
+      : path.join(process.cwd(), 'test', 'results', 'newman');
 
   const collection = loadCollection(collectionPath);
   const flowRequests = listFlows(collection);

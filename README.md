@@ -225,7 +225,11 @@ When your project has multiple environment files (local, staging, CI, etc.), pas
 
 ## Reports
 
-Results are written to `tests/results/newman/`:
+JUnit XML and HTML reports are written to `test/results/newman/` by default. Override with `--results-dir`:
+
+```bash
+npx newman-flows run --all --results-dir ./ci-reports
+```
 
 | File          | Format                     |
 | ------------- | -------------------------- |
@@ -238,14 +242,14 @@ Results are written to `tests/results/newman/`:
 
 ```yaml
 - name: Run all flows
-  run: npx newman-flows run --all
+  run: npx newman-flows run --all --results-dir ./test/results/newman
 
 - name: Upload flow reports
   if: always()
   uses: actions/upload-artifact@v4
   with:
     name: newman-flows-results
-    path: tests/results/newman
+    path: test/results/newman
     retention-days: 7
 ```
 
