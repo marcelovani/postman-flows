@@ -6,10 +6,11 @@
  * It contains only the requests belonging to the flow, in the declared order,
  * and strips any collection-level scripts that reference `_flow_steps` (a
  * routing helper that is unnecessary when running a flat sequence).
+ *
+ * Reporter configuration is passed straight through to newman.run() — this
+ * package does not add or default any reporters beyond Newman's own defaults.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
 import newman, { type NewmanRunOptions } from 'newman';
 import { findRequest, loadCollection, resolveCollectionPath, resolveEnvironmentPath } from '../lib/collection.js';
 import { extractFlowDef, findFlowRequest, listFlows } from '../lib/flows.js';
@@ -59,34 +60,22 @@ async function runFlowDef(
   collection: PostmanCollection,
   flowDef: FlowDef,
   envPath: string | undefined,
-  resultsDir: string | undefined,
+  reporters: string | string[] | undefined,
+  reporter: Record<string, unknown> | undefined,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const tempCollection = buildTempCollection(collection, flowDef);
 
-    if (resultsDir) {
-      fs.mkdirSync(resultsDir, { recursive: true });
-    }
-
     console.log(`\n▶ Running flow: ${flowDef.name}`);
     console.log(`  Steps: ${flowDef.steps.join(' → ')}\n`);
-
-    const reporters: string[] = ['cli'];
-    const reporter: Record<string, unknown> = {};
-
-    if (resultsDir) {
-      reporters.push('junit', 'htmlextra');
-      reporter['junit'] = { export: path.join(resultsDir, 'results.xml') };
-      reporter['htmlextra'] = { export: path.join(resultsDir, 'report.html') };
-    }
 
     newman.run(
       {
         collection: tempCollection as NewmanRunOptions['collection'],
         environment: envPath,
         insecure: true,
-        reporters,
-        reporter,
+        reporters: reporters ?? 'cli',
+        reporter: reporter ?? {},
       },
       (err, summary) => {
         if (err) return reject(err);
@@ -114,8 +103,10 @@ async function runFlowDef(
  * @param opts.flow      - Exact name of the flow to run (case-sensitive).
  * @param opts.env       - Path to a `.postman_environment.json` file, or
  *   `undefined` to auto-discover / run without an environment.
- * @param opts.resultsDir - Directory for JUnit XML and HTML reports. Defaults
- *   to `<cwd>/test/results/newman`. Created automatically if absent.
+ * @param opts.reporters - Newman reporters to activate (e.g. `['cli', 'junit']`).
+ *   Defaults to `'cli'`.
+ * @param opts.reporter  - Per-reporter options passed directly to `newman.run()`
+ *   (e.g. `{ junit: { export: './results.xml' } }`).
  *
  * @throws {Error} If the collection or environment file cannot be resolved.
  * @throws {Error} If the named flow does not exist in the collection.
@@ -124,15 +115,10 @@ async function runFlowDef(
 export async function runFlow(opts: RunOptions & { flow: string }): Promise<void> {
   const collectionPath = resolveCollectionPath(opts.collection);
   const envPath = resolveEnvironmentPath(opts.env);
-  const resultsDir =
-    opts.resultsDir !== undefined
-      ? path.resolve(process.cwd(), opts.resultsDir)
-      : path.join(process.cwd(), 'test', 'results', 'newman');
-
   const collection = loadCollection(collectionPath);
   const flowReq = findFlowRequest(collection, opts.flow);
   const flowDef = extractFlowDef(flowReq);
-  await runFlowDef(collection, flowDef, envPath, resultsDir);
+  await runFlowDef(collection, flowDef, envPath, opts.reporters, opts.reporter);
 }
 
 /**
@@ -142,8 +128,10 @@ export async function runFlow(opts: RunOptions & { flow: string }): Promise<void
  *   `undefined` to auto-discover from `<cwd>/dev/Postman/`.
  * @param opts.env       - Path to a `.postman_environment.json` file, or
  *   `undefined` to auto-discover / run without an environment.
- * @param opts.resultsDir - Directory for JUnit XML and HTML reports. Defaults
- *   to `<cwd>/test/results/newman`. Created automatically if absent.
+ * @param opts.reporters - Newman reporters to activate (e.g. `['cli', 'junit']`).
+ *   Defaults to `'cli'`.
+ * @param opts.reporter  - Per-reporter options passed directly to `newman.run()`
+ *   (e.g. `{ junit: { export: './results.xml' } }`).
  *
  * @throws {Error} If the collection or environment file cannot be resolved.
  * @throws {Error} If the collection contains no flows.
@@ -152,11 +140,6 @@ export async function runFlow(opts: RunOptions & { flow: string }): Promise<void
 export async function runAllFlows(opts: RunOptions): Promise<void> {
   const collectionPath = resolveCollectionPath(opts.collection);
   const envPath = resolveEnvironmentPath(opts.env);
-  const resultsDir =
-    opts.resultsDir !== undefined
-      ? path.resolve(process.cwd(), opts.resultsDir)
-      : path.join(process.cwd(), 'test', 'results', 'newman');
-
   const collection = loadCollection(collectionPath);
   const flowRequests = listFlows(collection);
 
@@ -166,7 +149,7 @@ export async function runAllFlows(opts: RunOptions): Promise<void> {
 
   for (const flowReq of flowRequests) {
     const flowDef = extractFlowDef(flowReq);
-    await runFlowDef(collection, flowDef, envPath, resultsDir);
+    await runFlowDef(collection, flowDef, envPath, opts.reporters, opts.reporter);
   }
 
   console.log('\n✅ All flows passed.');
