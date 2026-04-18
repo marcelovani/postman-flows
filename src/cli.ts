@@ -57,7 +57,10 @@ program
   .option('--all', 'run every flow defined in the Flows/ folder')
   .option('--collection <path>', 'path to the Postman collection JSON file')
   .option('--env <path>', 'path to a Postman environment JSON file')
-  .option('--results-dir <path>', 'directory for junit XML and HTML reports')
+  .option('--reporters <list>', 'comma-separated list of Newman reporters (default: cli)')
+  .option('--reporter-junit-export <path>', 'export path for the JUnit XML report')
+  .option('--reporter-htmlextra-export <path>', 'export path for the HTML report')
+  .option('--reporter-json-export <path>', 'export path for the JSON report')
   .action(
     async (
       flowName: string | undefined,
@@ -65,22 +68,34 @@ program
         all?: boolean;
         collection?: string;
         env?: string;
-        resultsDir?: string;
+        reporters?: string;
+        reporterJunitExport?: string;
+        reporterHtmlextraExport?: string;
+        reporterJsonExport?: string;
       },
     ) => {
       try {
+        const reporters = opts.reporters ? opts.reporters.split(',').map((r) => r.trim()) : undefined;
+
+        const reporter: Record<string, unknown> = {};
+        if (opts.reporterJunitExport) reporter['junit'] = { export: opts.reporterJunitExport };
+        if (opts.reporterHtmlextraExport) reporter['htmlextra'] = { export: opts.reporterHtmlextraExport };
+        if (opts.reporterJsonExport) reporter['json'] = { export: opts.reporterJsonExport };
+
         if (opts.all) {
           await runAllFlows({
             collection: resolveCollectionPath(opts.collection),
             env: opts.env,
-            resultsDir: opts.resultsDir,
+            reporters,
+            reporter: Object.keys(reporter).length ? reporter : undefined,
           });
         } else if (flowName) {
           await runFlow({
             collection: resolveCollectionPath(opts.collection),
             flow: flowName,
             env: opts.env,
-            resultsDir: opts.resultsDir,
+            reporters,
+            reporter: Object.keys(reporter).length ? reporter : undefined,
           });
         } else {
           console.error('Provide a flow name or --all.\n');
