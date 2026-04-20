@@ -75,6 +75,7 @@ const SKIP_DIRS = new Set([
   'coverage',
   '.nyc_output',
   '.turbo',
+  'vendor',
 ]);
 
 /**
