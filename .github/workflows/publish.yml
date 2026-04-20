@@ -4,8 +4,6 @@ on:
   push:
     tags:
       - 'v*'
-  release:
-    types: [published]
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -51,6 +49,15 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - run: npm ci
+
+      - name: Verify package version matches tag
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match tag ($GITHUB_REF_NAME). Run 'npm version <patch|minor|major>' to bump and create the tag together."
+            exit 1
+          fi
 
       - name: Publish
         run: npm publish --provenance --access public
