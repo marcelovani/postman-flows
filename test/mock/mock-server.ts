@@ -49,6 +49,10 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
+function param(p: string | string[]): string {
+  return Array.isArray(p) ? p[0] : p;
+}
+
 function requireAuth(req: Request, res: Response): boolean {
   const auth = req.headers.authorization || '';
   if (!auth.startsWith('Bearer ')) {
@@ -108,7 +112,7 @@ export function createApp() {
 
   app.patch('/api/items/:id', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const item = items[req.params.id];
+    const item = items[param(req.params.id)];
     if (!item) return res.status(404).json({ error: 'Item not found' });
     if (req.body.name) item.name = req.body.name;
     if (req.body.status) item.status = req.body.status;
@@ -117,7 +121,7 @@ export function createApp() {
 
   app.get('/api/items/:id', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const item = items[req.params.id];
+    const item = items[param(req.params.id)];
     if (!item) return res.status(404).json({ error: 'Item not found' });
     res.status(200).json(item);
   });
@@ -128,7 +132,7 @@ export function createApp() {
 
   app.post('/api/items/:id/invitations', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const itemId = req.params.id;
+    const itemId = param(req.params.id);
     if (!items[itemId]) return res.status(404).json({ error: 'Item not found' });
     const { email } = req.body || {};
     if (!email) return res.status(400).json({ error: 'email is required' });
@@ -139,7 +143,7 @@ export function createApp() {
 
   app.post('/api/invitations/:id/accept', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    const inv = invitations[req.params.id];
+    const inv = invitations[param(req.params.id)];
     if (!inv) return res.status(404).json({ error: 'Invitation not found' });
     if (inv.status === 'accepted') {
       return res.status(409).json({ error: 'Invitation already accepted' });
@@ -157,8 +161,9 @@ export function createApp() {
 
   app.get('/api/items/:id/members', (req: Request, res: Response) => {
     if (!requireAuth(req, res)) return;
-    if (!items[req.params.id]) return res.status(404).json({ error: 'Item not found' });
-    res.status(200).json(members[req.params.id] || []);
+    const id = param(req.params.id);
+    if (!items[id]) return res.status(404).json({ error: 'Item not found' });
+    res.status(200).json(members[id] || []);
   });
 
   return app;
