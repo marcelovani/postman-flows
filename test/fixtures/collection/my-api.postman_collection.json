@@ -33,9 +33,7 @@
               "name": "Organisation admin login",
               "request": {
                 "method": "POST",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"password\": \"{{admin_password}}\"\n}"
@@ -66,9 +64,7 @@
               "name": "Organisation member login",
               "request": {
                 "method": "POST",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n  \"username\": \"{{member_username}}\",\n  \"password\": \"{{member_password}}\"\n}"
@@ -171,9 +167,7 @@
               "name": "View Organisation",
               "request": {
                 "method": "GET",
-                "header": [
-                  { "key": "Authorization", "value": "Bearer {{access_token}}" }
-                ],
+                "header": [{ "key": "Authorization", "value": "Bearer {{access_token}}" }],
                 "url": {
                   "raw": "{{base_url}}/api/organisations/{{organisation_id}}",
                   "host": ["{{base_url}}"],
